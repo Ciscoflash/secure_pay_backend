@@ -1,0 +1,19 @@
+import express from 'express';
+import {
+  register,
+  login,
+  getMe,
+  verifyEmail,
+  resend,
+} from '../controllers/authController';
+import protect from '../middleware/auth';
+
+const router = express.Router();
+
+router.post('/register', register);
+router.post('/login', login);
+router.post('/verify-email', verifyEmail);
+router.post('/resend-verification', protect, resend);
+router.get('/me', protect, getMe);
+
+export default router;
