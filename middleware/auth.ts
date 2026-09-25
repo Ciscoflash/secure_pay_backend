@@ -3,7 +3,6 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User';
 import AppError from '../utils/AppError';
 import { verifyToken } from '../utils/token';
-
 export interface AuthRequest extends Request {
   user?: {
     id: string;
@@ -15,7 +14,6 @@ export interface AuthRequest extends Request {
     emailVerified: boolean;
   };
 }
-
 const protect = async (
   req: AuthRequest,
   res: Response,
@@ -23,24 +21,18 @@ const protect = async (
 ): Promise<void> => {
   try {
     let token: string | undefined;
-
     const authHeader = req.headers.authorization;
     if (authHeader && authHeader.startsWith('Bearer')) {
       token = authHeader.split(' ')[1];
     }
-
     if (!token) {
       throw new AppError('Not authorized to access this route', 401);
     }
-
     const decoded = verifyToken(token) as jwt.JwtPayload;
-
     const user = await User.findById(decoded.id).select('-password');
-
     if (!user) {
       throw new AppError('User account no longer exists', 401);
     }
-
     req.user = {
       id: user._id.toString(),
       name: user.name,
@@ -50,7 +42,6 @@ const protect = async (
       role: user.role,
       emailVerified: user.emailVerified,
     };
-
     next();
   } catch (error) {
     if (error instanceof AppError) {
@@ -60,8 +51,6 @@ const protect = async (
     }
   }
 };
-
-/** Allow the request through only for the given roles. Use after [protect]. */
 export const authorize =
   (...roles: string[]) =>
   (req: AuthRequest, res: Response, next: NextFunction): void => {
@@ -71,8 +60,6 @@ export const authorize =
     }
     next();
   };
-
-/** Block unverified accounts from sensitive routes. Use after [protect]. */
 export const requireVerified = (
   req: AuthRequest,
   res: Response,
@@ -93,5 +80,4 @@ export const requireVerified = (
   }
   next();
 };
-
 export default protect;

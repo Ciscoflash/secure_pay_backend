@@ -1,13 +1,10 @@
 import { IUser } from '../models/User';
 import { IShipment } from '../models/Shipment';
-
-/** The user fields safe to send to the client. Money is in kobo. */
 export const toPublicUser = (user: IUser) => {
   const [first = '', ...rest] = (user.name || '').trim().split(/\s+/);
   return {
     id: user._id,
     name: user.name,
-    // Older accounts only have `name`; derive the parts for them.
     firstName: user.firstName || first,
     lastName: user.lastName || rest.join(' '),
     email: user.email,
@@ -19,7 +16,6 @@ export const toPublicUser = (user: IUser) => {
     emailVerified: user.emailVerified ?? false,
   };
 };
-
 export const toShipmentDTO = (s: IShipment) => ({
   id: s._id,
   trackingId: s.trackingId,

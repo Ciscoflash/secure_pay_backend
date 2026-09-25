@@ -5,9 +5,7 @@ import Transaction from '../models/Transaction';
 import AppError from '../utils/AppError';
 import { toShipmentDTO } from '../utils/serializers';
 import { createNotification, formatNaira } from './notificationService';
-
 export const MAX_PAGE_SIZE = 50;
-
 export const listShipments = async (
   userId: string,
   page: number,
@@ -21,13 +19,11 @@ export const listShipments = async (
       .limit(limit),
     Shipment.countDocuments(filter),
   ]);
-
   return {
     items: items.map(toShipmentDTO),
     meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
   };
 };
-
 const findOwned = async (userId: string, shipmentId: string) => {
   if (!Types.ObjectId.isValid(shipmentId)) {
     throw new AppError('Shipment not found', 404);
@@ -36,26 +32,13 @@ const findOwned = async (userId: string, shipmentId: string) => {
   if (!shipment) throw new AppError('Shipment not found', 404);
   return shipment;
 };
-
 export const getShipment = async (userId: string, shipmentId: string) =>
   toShipmentDTO(await findOwned(userId, shipmentId));
-
-/**
- * Pays for a shipment from the wallet.
- *
- * Runs without a multi-document transaction (a standalone MongoDB doesn't
- * support them), so each step is a conditional atomic update and the first
- * step is undone if the second fails:
- *   1. claim the shipment (isPaid false → true), so it can't be paid twice;
- *   2. debit the wallet only if the balance covers the amount;
- *   3. record the ledger entry.
- */
 export const payShipment = async (userId: string, shipmentId: string) => {
   const existing = await findOwned(userId, shipmentId);
   if (existing.isPaid) {
     throw new AppError('This shipment has already been paid for', 400);
   }
-
   const claimed = await Shipment.findOneAndUpdate(
     { _id: existing._id, user: userId, isPaid: false },
     { $set: { isPaid: true, paidAt: new Date() } },
@@ -64,7 +47,6 @@ export const payShipment = async (userId: string, shipmentId: string) => {
   if (!claimed) {
     throw new AppError('This shipment has already been paid for', 400);
   }
-
   const user = await User.findOneAndUpdate(
     { _id: userId, walletBalance: { $gte: claimed.amount } },
     { $inc: { walletBalance: -claimed.amount } },
@@ -80,7 +62,6 @@ export const payShipment = async (userId: string, shipmentId: string) => {
       400,
     );
   }
-
   await Transaction.create({
     user: user._id,
     type: 'debit',
@@ -89,12 +70,10 @@ export const payShipment = async (userId: string, shipmentId: string) => {
     description: `Payment for shipment ${claimed.trackingId}`,
     shipment: claimed._id,
   });
-
   await createNotification(userId, {
     type: 'debit',
     title: 'Shipment paid',
     message: `${formatNaira(claimed.amount)} was deducted for shipment ${claimed.trackingId}.`,
   });
-
   return { shipment: toShipmentDTO(claimed), balance: user.walletBalance };
 };

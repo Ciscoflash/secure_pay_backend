@@ -5,14 +5,11 @@ import notificationRoutes from './notificationRoutes';
 import shipmentRoutes from './shipmentRoutes';
 import userRoutes from './userRoutes';
 import walletRoutes from './walletRoutes';
-
 const router = express.Router();
-
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/dashboard', dashboardRoutes);
 router.use('/shipments', shipmentRoutes);
 router.use('/wallet', walletRoutes);
 router.use('/notifications', notificationRoutes);
-
 export default router;

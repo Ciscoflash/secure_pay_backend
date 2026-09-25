@@ -1,6 +1,5 @@
 import mongoose, { Schema, Document, InferSchemaType, Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
-
 export const userSchema = new Schema(
   {
     name: {
@@ -46,7 +45,6 @@ export const userSchema = new Schema(
       enum: ['user', 'admin'],
       default: 'user',
     },
-    // Stored in kobo (1 NGN = 100 kobo) so balances never hit float rounding.
     walletBalance: {
       type: Number,
       default: 0,
@@ -56,7 +54,6 @@ export const userSchema = new Schema(
         message: 'Wallet balance must be a whole number of kobo',
       },
     },
-    // 10-digit account number users transfer to when funding their wallet.
     walletNumber: {
       type: String,
       unique: true,
@@ -68,7 +65,6 @@ export const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
-    // SHA-256 hash of the one-time verification token. Never store the raw token.
     emailVerificationToken: {
       type: String,
       select: false,
@@ -81,18 +77,15 @@ export const userSchema = new Schema(
     timestamps: true,
   }
 );
-
 userSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
     next();
     return;
   }
-
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
   next();
 });
-
 export interface IUser extends Document {
   name: string;
   firstName?: string;
@@ -109,12 +102,9 @@ export interface IUser extends Document {
   emailVerificationTokenExpires?: Date;
   comparePassword(enteredPassword: string): Promise<boolean>;
 }
-
 export type UserSchemaType = InferSchemaType<typeof userSchema>;
-
 export const UserModel = mongoose.model<IUser, Model<IUser>>(
   'User',
   userSchema,
 );
-
 export default UserModel;

@@ -1,12 +1,10 @@
 import mongoose, { Schema, Document, Model } from 'mongoose';
-
 export type NotificationType =
   | 'welcome'
   | 'credit'
   | 'debit'
   | 'shipment'
   | 'info';
-
 export interface INotification extends Document {
   user: mongoose.Types.ObjectId;
   title: string;
@@ -15,7 +13,6 @@ export interface INotification extends Document {
   read: boolean;
   createdAt: Date;
 }
-
 const notificationSchema = new Schema<INotification>(
   {
     user: {
@@ -50,10 +47,8 @@ const notificationSchema = new Schema<INotification>(
     timestamps: { createdAt: true, updatedAt: false },
   },
 );
-
 export const NotificationModel = mongoose.model<INotification, Model<INotification>>(
   'Notification',
   notificationSchema,
 );
-
 export default NotificationModel;

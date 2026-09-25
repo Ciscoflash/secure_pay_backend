@@ -1,5 +1,4 @@
 import mongoose, { Schema, Document, Model, Types } from 'mongoose';
-
 export const SHIPMENT_STATUSES = [
   'pending',
   'in_transit',
@@ -7,16 +6,12 @@ export const SHIPMENT_STATUSES = [
   'delivered',
 ] as const;
 export type ShipmentStatus = (typeof SHIPMENT_STATUSES)[number];
-
-/** Export = leaving Nigeria, import = arriving in Nigeria, local = domestic. */
 export const SHIPMENT_DIRECTIONS = ['export', 'import', 'local'] as const;
 export type ShipmentDirection = (typeof SHIPMENT_DIRECTIONS)[number];
-
 export interface IPlace {
   name: string;
   countryCode: string;
 }
-
 export interface IShipment extends Document {
   _id: Types.ObjectId;
   trackingId: string;
@@ -34,7 +29,6 @@ export interface IShipment extends Document {
   createdAt: Date;
   updatedAt: Date;
 }
-
 const placeSchema = new Schema<IPlace>(
   {
     name: { type: String, required: true, trim: true },
@@ -48,7 +42,6 @@ const placeSchema = new Schema<IPlace>(
   },
   { _id: false },
 );
-
 const shipmentSchema = new Schema<IShipment>(
   {
     trackingId: {
@@ -66,7 +59,6 @@ const shipmentSchema = new Schema<IShipment>(
     receiver: { type: String, required: true, trim: true },
     pickUp: { type: placeSchema, required: true },
     deliveryTo: { type: placeSchema, required: true },
-    // Kobo, like User.walletBalance.
     amount: {
       type: Number,
       required: true,
@@ -96,13 +88,9 @@ const shipmentSchema = new Schema<IShipment>(
   },
   { timestamps: true },
 );
-
-// Dashboard queries always filter by owner and a createdAt window.
 shipmentSchema.index({ user: 1, createdAt: -1 });
-
 export const ShipmentModel = mongoose.model<IShipment, Model<IShipment>>(
   'Shipment',
   shipmentSchema,
 );
-
 export default ShipmentModel;

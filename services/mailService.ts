@@ -1,11 +1,8 @@
 import { Resend } from 'resend';
 import AppError from '../utils/AppError';
-
 const API_KEY = process.env.RESEND_API_KEY;
 const FROM = process.env.EMAIL_FROM || 'SecurePay <onboarding@resend.dev>';
-
 let resend: Resend | null = null;
-
 const getClient = (): Resend => {
   if (!API_KEY) {
     throw new AppError(
@@ -18,8 +15,6 @@ const getClient = (): Resend => {
   }
   return resend;
 };
-
-/** Emails the 5-digit verification [code]; throws a 500 if delivery fails. */
 export const sendVerificationEmail = async (to: string, code: string) => {
   const html = `
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e5e7eb; border-radius: 12px;">
@@ -29,7 +24,6 @@ export const sendVerificationEmail = async (to: string, code: string) => {
       <p style="margin: 20px 0 0; color: #6b7280; font-size: 13px;">If you did not create an account, you can safely ignore this email.</p>
     </div>
   `;
-
   try {
     const { data, error } = await getClient().emails.send({
       from: FROM,

@@ -4,19 +4,14 @@ import User from '../models/User';
 import Shipment, { IPlace, ShipmentDirection, ShipmentStatus } from '../models/Shipment';
 import Transaction from '../models/Transaction';
 import { zonedMidnight, zonedParts, daysInMonth } from '../utils/time';
-
 interface SeedOptions {
   reset: boolean;
 }
-
 const parseArgs = (): SeedOptions => {
   return { reset: process.argv.includes('--reset') };
 };
-
 const DEMO_EMAIL = 'demo@securepay.com';
-/** N3,000,000.28 — the balance shown in the dashboard design. */
 const DEMO_BALANCE_KOBO = 300_000_028;
-
 const seedUsers = async (reset: boolean) => {
   if (reset) {
     await Promise.all([
@@ -26,7 +21,6 @@ const seedUsers = async (reset: boolean) => {
     ]);
     console.log('Deleted all users, shipments and transactions');
   }
-
   const users = [
     {
       name: 'Demo User',
@@ -45,7 +39,6 @@ const seedUsers = async (reset: boolean) => {
       role: 'admin',
     },
   ];
-
   for (const user of users) {
     const exists = await User.findOne({ email: user.email });
     if (!exists) {
@@ -56,15 +49,12 @@ const seedUsers = async (reset: boolean) => {
     }
   }
 };
-
-// Deterministic PRNG so every seed produces the same dashboard.
 const mulberry32 = (seed: number) => () => {
   let t = (seed += 0x6d2b79f5);
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
-
 const NIGERIA: IPlace[] = [
   { name: 'Lagos, Nigeria', countryCode: 'NG' },
   { name: 'Oyo Nigeria', countryCode: 'NG' },
@@ -80,20 +70,15 @@ const ABROAD: IPlace[] = [
   { name: 'Dubai, UAE', countryCode: 'AE' },
 ];
 const PEOPLE = ['Bunmi Tanny', 'Mercy', 'Chidi Okafor', 'Aisha Bello', 'Tunde Ade', 'Ngozi Eze'];
-
-/** Monthly volume shape taken from the design's Company Growth chart. */
 const MONTHLY_SHAPE = [28, 33, 30, 36, 34, 44, 32, 49, 38, 63, 12, 98];
-
 const seedDemoShipments = async (reset: boolean) => {
   const demo = await User.findOne({ email: DEMO_EMAIL });
   if (!demo) return;
-
   const existing = await Shipment.countDocuments({ user: demo._id });
   if (existing > 0 && !reset) {
     console.log(`Demo user already has ${existing} shipments, skipping`);
     return;
   }
-
   const rand = mulberry32(20260924);
   const pick = <T>(list: T[]) => list[Math.floor(rand() * list.length)];
   const now = new Date();
@@ -108,10 +93,7 @@ const seedDemoShipments = async (reset: boolean) => {
     usedIds.add(id);
     return id;
   };
-
   const docs: Record<string, unknown>[] = [];
-
-  // History: last year plus this year up to now.
   for (const year of [today.year - 1, today.year]) {
     for (let month = 1; month <= 12; month++) {
       if (year === today.year && month > today.month) break;
@@ -120,14 +102,12 @@ const seedDemoShipments = async (reset: boolean) => {
       const count = Math.round(
         MONTHLY_SHAPE[month - 1] * (days / daysInMonth(year, month)),
       );
-
       for (let i = 0; i < count; i++) {
         const day = 1 + Math.floor(rand() * days);
         const createdAt = new Date(
           zonedMidnight(year, month, day).getTime() + rand() * 86_400_000,
         );
         if (createdAt > now) continue;
-
         const roll = rand();
         const direction: ShipmentDirection =
           roll < 0.45 ? 'export' : roll < 0.85 ? 'import' : 'local';
@@ -137,12 +117,10 @@ const seedDemoShipments = async (reset: boolean) => {
             : direction === 'import'
               ? [pick(ABROAD), pick(NIGERIA)]
               : [pick(NIGERIA), pick(NIGERIA)];
-
         const ageDays = (now.getTime() - createdAt.getTime()) / 86_400_000;
         const status: ShipmentStatus =
           ageDays > 14 ? 'delivered' : pick(['pending', 'in_transit', 'delayed']);
         const isPaid = status === 'delivered' || rand() < 0.6;
-
         docs.push({
           trackingId: trackingId(),
           user: demo._id,
@@ -150,7 +128,7 @@ const seedDemoShipments = async (reset: boolean) => {
           receiver: pick(PEOPLE),
           pickUp,
           deliveryTo,
-          amount: (3 + Math.floor(rand() * 45)) * 50_000, // N1,500 – N25,000
+          amount: (3 + Math.floor(rand() * 45)) * 50_000,
           status,
           direction,
           processingHours: 6 + Math.floor(rand() * 60),
@@ -162,8 +140,6 @@ const seedDemoShipments = async (reset: boolean) => {
       }
     }
   }
-
-  // The three most recent shipments, exactly as in the dashboard design.
   const designRows: [string, ShipmentStatus, boolean][] = [
     ['MAF-100-234-291', 'in_transit', true],
     ['MAF-100-234-292', 'delayed', false],
@@ -178,7 +154,7 @@ const seedDemoShipments = async (reset: boolean) => {
       receiver: 'Mercy',
       pickUp: NIGERIA[0],
       deliveryTo: NIGERIA[1],
-      amount: 300_000, // N3,000
+      amount: 300_000,
       status,
       direction: 'local',
       processingHours: 10,
@@ -188,9 +164,6 @@ const seedDemoShipments = async (reset: boolean) => {
       updatedAt: createdAt,
     });
   });
-
-  // Mongoose timestamps stamp inserts with "now", so restore the historical
-  // createdAt values with a raw bulk write afterwards.
   await Shipment.insertMany(docs);
   await Shipment.collection.bulkWrite(
     docs.map((d) => ({
@@ -200,7 +173,6 @@ const seedDemoShipments = async (reset: boolean) => {
       },
     })),
   );
-
   await User.updateOne(
     { _id: demo._id },
     { $set: { walletBalance: DEMO_BALANCE_KOBO, firstName: 'Demo', lastName: 'User' } },
@@ -212,22 +184,17 @@ const seedDemoShipments = async (reset: boolean) => {
     balanceAfter: DEMO_BALANCE_KOBO,
     description: 'Opening balance (seed)',
   });
-
   console.log(`Seeded ${docs.length} shipments and wallet balance for ${DEMO_EMAIL}`);
 };
-
 const seed = async (): Promise<void> => {
   try {
     const { reset } = parseArgs();
-
     await mongoose.connect(
       process.env.MONGODB_URI || 'mongodb://localhost:27017/securepay',
     );
-
     console.log('MongoDB Connected');
     await seedUsers(reset);
     await seedDemoShipments(reset);
-
     console.log('Seeding complete');
     process.exit(0);
   } catch (error) {
@@ -239,5 +206,4 @@ const seed = async (): Promise<void> => {
     process.exit(1);
   }
 };
-
 seed();

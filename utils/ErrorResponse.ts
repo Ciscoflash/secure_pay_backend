@@ -1,5 +1,4 @@
 import { Response } from 'express';
-
 class ErrorResponse {
   constructor(
     res: Response,
@@ -17,5 +16,4 @@ class ErrorResponse {
     });
   }
 }
-
 export default ErrorResponse;
