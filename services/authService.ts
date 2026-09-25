@@ -25,20 +25,23 @@ const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 const hashVerificationCode = (code: string): string =>
   createHash('sha256').update(code).digest('hex');
 const VERIFICATION_CODE_PATTERN = /^\d{5}$/;
-const issueAndSendVerification = async (user: IUser): Promise<string> => {
+const issueAndSendVerification = async (
+  user: IUser,
+): Promise<{ code: string; emailDeliveryFailed: boolean }> => {
   const code = randomInt(10000, 100000).toString();
   user.emailVerificationToken = hashVerificationCode(code);
   user.emailVerificationTokenExpires = new Date(Date.now() + VERIFICATION_TTL_MS);
   await user.save();
+  let emailDeliveryFailed = false;
   try {
     await sendVerificationEmail(user.email, code);
   } catch (error) {
-    if (!shouldExposeVerificationCode()) {
-      throw error;
-    }
-    console.warn(`Email delivery to ${user.email} failed; code shown in the app instead.`);
+    emailDeliveryFailed = true;
+    console.warn(
+      `Email delivery to ${user.email} failed; verification continues with an in-app code.`,
+    );
   }
-  return code;
+  return { code, emailDeliveryFailed };
 };
 export const registerUser = async (input: RegisterInput) => {
   const fields = [input.firstName, input.lastName, input.email, input.password];
@@ -75,8 +78,11 @@ export const registerUser = async (input: RegisterInput) => {
     walletNumber: await mintWalletNumber(),
   });
   let verificationCode: string;
+  let emailDeliveryFailed = false;
   try {
-    verificationCode = await issueAndSendVerification(user);
+    const issued = await issueAndSendVerification(user);
+    verificationCode = issued.code;
+    emailDeliveryFailed = issued.emailDeliveryFailed;
   } catch (error) {
     await User.findByIdAndDelete(user._id);
     throw error;
@@ -90,7 +96,10 @@ export const registerUser = async (input: RegisterInput) => {
   return {
     token,
     user: toPublicUser(user),
-    verificationCode: shouldExposeVerificationCode() ? verificationCode : undefined,
+    verificationCode:
+      shouldExposeVerificationCode() || emailDeliveryFailed
+        ? verificationCode
+        : undefined,
   };
 };
 export const loginUser = async (input: LoginInput) => {
@@ -147,9 +156,10 @@ export const resendVerification = async (userId: string) => {
   if (user.emailVerified) {
     throw new AppError('Your email is already verified', 400);
   }
-  const code = await issueAndSendVerification(user);
+  const { code, emailDeliveryFailed } = await issueAndSendVerification(user);
   return {
     email: user.email,
-    verificationCode: shouldExposeVerificationCode() ? code : undefined,
+    verificationCode:
+      shouldExposeVerificationCode() || emailDeliveryFailed ? code : undefined,
   };
 };
