@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import {
   MAX_PAGE_SIZE,
+  createShipment,
+  estimateShipment,
   getShipment,
   listShipments,
   payShipment,
@@ -12,15 +14,31 @@ const positiveInt = (value: unknown, fallback: number, max = Infinity) => {
   const n = Number.parseInt(String(value ?? ''), 10);
   return Number.isFinite(n) && n > 0 ? Math.min(n, max) : fallback;
 };
+const stringOr = (value: unknown, fallback = '') =>
+  typeof value === 'string' ? value : fallback;
 export const list = asyncHandler(async (req: AuthRequest, res: Response) => {
   const page = positiveInt(req.query.page, 1);
   const limit = positiveInt(req.query.limit, 10, MAX_PAGE_SIZE);
-  const data = await listShipments(req.user!.id, page, limit);
+  const data = await listShipments(req.user!.id, page, limit, {
+    status: stringOr(req.query.status),
+    direction: stringOr(req.query.direction),
+    search: stringOr(req.query.search),
+  });
   return new SuccessResponse(res, 'Shipments fetched successfully', data);
 });
 export const show = asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = await getShipment(req.user!.id, req.params.id);
   return new SuccessResponse(res, 'Shipment fetched successfully', data);
+});
+export const estimate = asyncHandler(
+  async (req: AuthRequest, res: Response) => {
+    const data = estimateShipment(req.body);
+    return new SuccessResponse(res, 'Delivery estimate computed', data);
+  },
+);
+export const create = asyncHandler(async (req: AuthRequest, res: Response) => {
+  const data = await createShipment(req.user!.id, req.body);
+  return new SuccessResponse(res, 'Shipment created successfully', data);
 });
 export const pay = asyncHandler(async (req: AuthRequest, res: Response) => {
   const data = await payShipment(req.user!.id, req.params.id);

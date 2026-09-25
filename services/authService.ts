@@ -8,6 +8,7 @@ import { assertStrongPassword, normalizePhone } from '../utils/validation';
 import { sendVerificationEmail } from './mailService';
 import { createNotification } from './notificationService';
 import { mintWalletNumber } from '../utils/walletNumber';
+import { shouldExposeVerificationCode } from '../config/appConfig';
 interface RegisterInput {
   firstName: string;
   lastName: string;
@@ -24,12 +25,20 @@ const VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
 const hashVerificationCode = (code: string): string =>
   createHash('sha256').update(code).digest('hex');
 const VERIFICATION_CODE_PATTERN = /^\d{5}$/;
-const issueAndSendVerification = async (user: IUser) => {
+const issueAndSendVerification = async (user: IUser): Promise<string> => {
   const code = randomInt(10000, 100000).toString();
   user.emailVerificationToken = hashVerificationCode(code);
   user.emailVerificationTokenExpires = new Date(Date.now() + VERIFICATION_TTL_MS);
   await user.save();
-  await sendVerificationEmail(user.email, code);
+  try {
+    await sendVerificationEmail(user.email, code);
+  } catch (error) {
+    if (!shouldExposeVerificationCode()) {
+      throw error;
+    }
+    console.warn(`Email delivery to ${user.email} failed; code shown in the app instead.`);
+  }
+  return code;
 };
 export const registerUser = async (input: RegisterInput) => {
   const fields = [input.firstName, input.lastName, input.email, input.password];
@@ -65,8 +74,9 @@ export const registerUser = async (input: RegisterInput) => {
     password: input.password,
     walletNumber: await mintWalletNumber(),
   });
+  let verificationCode: string;
   try {
-    await issueAndSendVerification(user);
+    verificationCode = await issueAndSendVerification(user);
   } catch (error) {
     await User.findByIdAndDelete(user._id);
     throw error;
@@ -77,7 +87,11 @@ export const registerUser = async (input: RegisterInput) => {
     message: 'Your wallet is ready. Fund it to start paying for shipments.',
   });
   const token = signToken({ id: user._id });
-  return { token, user: toPublicUser(user) };
+  return {
+    token,
+    user: toPublicUser(user),
+    verificationCode: shouldExposeVerificationCode() ? verificationCode : undefined,
+  };
 };
 export const loginUser = async (input: LoginInput) => {
   const user = await User.findOne({
@@ -133,6 +147,9 @@ export const resendVerification = async (userId: string) => {
   if (user.emailVerified) {
     throw new AppError('Your email is already verified', 400);
   }
-  await issueAndSendVerification(user);
-  return { email: user.email };
+  const code = await issueAndSendVerification(user);
+  return {
+    email: user.email,
+    verificationCode: shouldExposeVerificationCode() ? code : undefined,
+  };
 };

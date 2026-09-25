@@ -12,7 +12,7 @@ import asyncHandler from '../utils/asyncHandler';
 import AppError from '../utils/AppError';
 export const register = asyncHandler(async (req: Request, res: Response) => {
   const { firstName, lastName, email, phone, countryCode, password } = req.body;
-  const { token, user } = await registerUser({
+  const { token, user, verificationCode } = await registerUser({
     firstName,
     lastName,
     email,
@@ -23,7 +23,7 @@ export const register = asyncHandler(async (req: Request, res: Response) => {
   return new SuccessResponse(
     res,
     'Account created successfully',
-    { token, user },
+    { token, user, verificationCode },
     201,
   );
 });
@@ -44,6 +44,9 @@ export const verifyEmail = asyncHandler(async (req: Request, res: Response) => {
   return new SuccessResponse(res, 'Email verified successfully', user);
 });
 export const resend = asyncHandler(async (req: AuthRequest, res: Response) => {
-  const { email } = await resendVerificationService(req.user!.id);
-  return new SuccessResponse(res, 'Verification email sent', { email });
+  const { email, verificationCode } = await resendVerificationService(req.user!.id);
+  return new SuccessResponse(res, 'Verification email sent', {
+    email,
+    verificationCode,
+  });
 });

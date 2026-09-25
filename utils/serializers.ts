@@ -30,4 +30,9 @@ export const toShipmentDTO = (s: IShipment) => ({
   isPaid: s.isPaid,
   paidAt: s.paidAt,
   createdAt: s.createdAt,
+  events: (s.events ?? []).map((e) => ({
+    status: e.status,
+    note: e.note,
+    at: e.at,
+  })),
 });

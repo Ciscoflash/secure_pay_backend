@@ -12,6 +12,11 @@ export interface IPlace {
   name: string;
   countryCode: string;
 }
+export interface ITrackingEvent {
+  status: ShipmentStatus;
+  note: string;
+  at: Date;
+}
 export interface IShipment extends Document {
   _id: Types.ObjectId;
   trackingId: string;
@@ -23,11 +28,12 @@ export interface IShipment extends Document {
   amount: number;
   status: ShipmentStatus;
   direction: ShipmentDirection;
-  processingHours: number;
-  isPaid: boolean;
-  paidAt?: Date;
-  createdAt: Date;
-  updatedAt: Date;
+processingHours: number;
+    isPaid: boolean;
+    paidAt?: Date;
+    events: ITrackingEvent[];
+    createdAt: Date;
+    updatedAt: Date;
 }
 const placeSchema = new Schema<IPlace>(
   {
@@ -39,6 +45,14 @@ const placeSchema = new Schema<IPlace>(
       trim: true,
       match: [/^[A-Z]{2}$/, 'Country code must be ISO 3166-1 alpha-2'],
     },
+  },
+  { _id: false },
+);
+const trackingEventSchema = new Schema<ITrackingEvent>(
+  {
+    status: { type: String, enum: SHIPMENT_STATUSES, required: true },
+    note: { type: String, trim: true, maxlength: 200 },
+    at: { type: Date, required: true },
   },
   { _id: false },
 );
@@ -85,6 +99,7 @@ const shipmentSchema = new Schema<IShipment>(
     },
     isPaid: { type: Boolean, default: false },
     paidAt: { type: Date },
+    events: { type: [trackingEventSchema], default: [] },
   },
   { timestamps: true },
 );

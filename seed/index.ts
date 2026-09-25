@@ -1,7 +1,12 @@
 import 'dotenv/config';
 import mongoose, { Types } from 'mongoose';
 import User from '../models/User';
-import Shipment, { IPlace, ShipmentDirection, ShipmentStatus } from '../models/Shipment';
+import Shipment, {
+  IPlace,
+  ITrackingEvent,
+  ShipmentDirection,
+  ShipmentStatus,
+} from '../models/Shipment';
 import Transaction from '../models/Transaction';
 import { zonedMidnight, zonedParts, daysInMonth } from '../utils/time';
 interface SeedOptions {
@@ -93,6 +98,59 @@ const seedDemoShipments = async (reset: boolean) => {
     usedIds.add(id);
     return id;
   };
+  const eventsFor = (
+    status: ShipmentStatus,
+    createdAt: Date,
+    isPaid: boolean,
+    paidAt: Date | undefined,
+  ): ITrackingEvent[] => {
+    const events: ITrackingEvent[] = [
+      { status: 'pending', note: 'Shipment created', at: createdAt },
+    ];
+    if (isPaid && paidAt) {
+      events.push({
+        status: 'pending',
+        note: 'Payment received',
+        at: new Date(paidAt.getTime() + 5 * 60_000),
+      });
+    }
+    if (status === 'in_transit') {
+      events.push({
+        status: 'in_transit',
+        note: 'Package picked up and in transit',
+        at: new Date(createdAt.getTime() + 60 * 60_000),
+      });
+    }
+    if (status === 'delayed') {
+      events.push(
+        {
+          status: 'in_transit',
+          note: 'Package picked up and in transit',
+          at: new Date(createdAt.getTime() + 60 * 60_000),
+        },
+        {
+          status: 'delayed',
+          note: 'Delivery delayed due to logistics',
+          at: new Date(createdAt.getTime() + 5 * 60 * 60_000),
+        },
+      );
+    }
+    if (status === 'delivered') {
+      events.push(
+        {
+          status: 'in_transit',
+          note: 'Package picked up and in transit',
+          at: new Date(createdAt.getTime() + 60 * 60_000),
+        },
+        {
+          status: 'delivered',
+          note: 'Delivered to destination',
+          at: new Date(createdAt.getTime() + 2 * 24 * 60 * 60_000),
+        },
+      );
+    }
+    return events;
+  };
   const docs: Record<string, unknown>[] = [];
   for (const year of [today.year - 1, today.year]) {
     for (let month = 1; month <= 12; month++) {
@@ -134,6 +192,7 @@ const seedDemoShipments = async (reset: boolean) => {
           processingHours: 6 + Math.floor(rand() * 60),
           isPaid,
           paidAt: isPaid ? createdAt : undefined,
+          events: eventsFor(status, createdAt, isPaid, isPaid ? createdAt : undefined),
           createdAt,
           updatedAt: createdAt,
         });
@@ -160,6 +219,7 @@ const seedDemoShipments = async (reset: boolean) => {
       processingHours: 10,
       isPaid,
       paidAt: isPaid ? createdAt : undefined,
+      events: eventsFor(status, createdAt, isPaid, isPaid ? createdAt : undefined),
       createdAt,
       updatedAt: createdAt,
     });
